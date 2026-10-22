@@ -123,12 +123,7 @@ async function startCapture(kind) {
     if (kind === "camera") {
       chosen = await devices.getUserMedia({
         audio: false,
-        video: {
-          facingMode: { ideal: facing },
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          frameRate: { ideal: 10, max: 15 }
-        }
+        video: true
       });
     } else {
       chosen = await devices.getDisplayMedia({
