@@ -8,6 +8,6 @@
   "dependencies": {
     "express": "^5.1.0",
     "ws": "^8.18.0",
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.3"
   }
 }

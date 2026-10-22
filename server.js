@@ -10,24 +10,28 @@ const wss = new WebSocket.Server({ server });
 const PORT = process.env.PORT || 10000;
 const TOKEN = process.env.STREAM_TOKEN;
 
-if (!TOKEN) throw new Error("Set STREAM_TOKEN in Render Environment");
+if (!TOKEN) {
+  throw new Error("Set STREAM_TOKEN in Render Environment");
+}
 
 let queue = [];
 let active = null;
 let frame = null;
 let sequence = 0;
-let conversionId = 0;
 const clients = new Map();
 
-function sameToken(a, b) {
-  const aa = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
+function safeEqual(a, b) {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
 }
 
 function authorized(req) {
-  const h = req.headers.authorization || "";
-  return h.startsWith("Bearer ") && sameToken(h.slice(7), TOKEN);
+  const header = req.headers.authorization || "";
+  const token = header.startsWith("Bearer ")
+    ? header.slice(7)
+    : "";
+  return safeEqual(token, TOKEN);
 }
 
 function status() {
@@ -48,8 +52,13 @@ function promote() {
 
 app.use(express.static("public"));
 
-app.get("/health", (_, res) => res.json({ ok: true, active: !!active }));
-app.get("/queue", (_, res) => res.json(status()));
+app.get("/health", (_, res) => {
+  res.json({ ok: true, active: !!active });
+});
+
+app.get("/queue", (_, res) => {
+  res.json(status());
+});
 
 app.get("/next", (req, res) => {
   if (!authorized(req)) {
@@ -70,7 +79,9 @@ app.post("/stop", (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  if (active) clients.get(active.id)?.close();
+  if (active) {
+    clients.get(active.id)?.close();
+  }
 
   active = null;
   frame = null;
@@ -82,7 +93,7 @@ wss.on("connection", (ws, req) => {
   const url = new URL(req.url, "http://localhost");
   const token = url.searchParams.get("token") || "";
 
-  if (!sameToken(token, TOKEN)) {
+  if (!safeEqual(token, TOKEN)) {
     ws.close(1008, "Unauthorized");
     return;
   }
@@ -97,44 +108,69 @@ wss.on("connection", (ws, req) => {
 
   function sendState() {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "state", ...status(), yourId: id }));
+      ws.send(JSON.stringify({
+        type: "state",
+        ...status(),
+        yourId: id
+      }));
     }
   }
 
   sendState();
   const ticker = setInterval(sendState, 1000);
 
+  let converting = false;
+
   ws.on("message", async raw => {
-    if (!active || active.id !== id) return;
+    if (!active || active.id !== id || converting) return;
     if (raw.length > 250000) return;
 
+    let msg;
+
     try {
-      const msg = JSON.parse(raw.toString());
+      msg = JSON.parse(raw.toString());
+    } catch {
+      return;
+    }
 
-      if (msg.type !== "frame" || typeof msg.data !== "string") return;
-      if (msg.data.length > 240000) return;
+    if (msg.type !== "frame" || typeof msg.data !== "string") return;
 
-      const match = msg.data.match(/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/);
-      if (!match) return;
+    const match = msg.data.match(
+      /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/
+    );
 
-      const thisConversion = ++conversionId;
+    if (!match || msg.data.length > 240000) return;
+
+    converting = true;
+
+    try {
       const jpeg = Buffer.from(match[1], "base64");
 
-      const { data, info } = await sharp(jpeg)
+      // Convert the incoming JPEG to exactly 300x300 RGB pixels.
+      const rgb = await sharp(jpeg, {
+        limitInputPixels: 4000000
+      })
         .resize(300, 300, { fit: "fill" })
         .flatten({ background: "#000000" })
         .removeAlpha()
         .raw()
-        .toBuffer({ resolveWithObject: true });
+        .toBuffer();
 
-      if (info.width !== 300 || info.height !== 300 || info.channels !== 3) return;
-      if (thisConversion !== conversionId || !active || active.id !== id) return;
+      if (rgb.length !== 300 * 300 * 3) {
+        throw new Error("Unexpected RGB buffer size: " + rgb.length);
+      }
 
-      // 300 x 300 pixels, six hexadecimal RGB characters per pixel.
-      frame = data.toString("hex").toUpperCase();
-      sequence++;
-    } catch (error) {
-      console.error("Frame conversion failed:", error.message);
+      // Each pixel becomes RRGGBB: 90,000 pixels = 540,000 characters.
+      const hex = rgb.toString("hex").toUpperCase();
+
+      if (active && active.id === id) {
+        frame = hex;
+        sequence++;
+      }
+    } catch (err) {
+      console.error("Frame conversion failed:", err.message);
+    } finally {
+      converting = false;
     }
   });
 
@@ -144,11 +180,14 @@ wss.on("connection", (ws, req) => {
     queue = queue.filter(x => x.id !== id);
 
     if (active && active.id === id) {
-      conversionId++;
       active = null;
       frame = null;
       promote();
     }
+  });
+
+  ws.on("error", err => {
+    console.error("WebSocket error:", err.message);
   });
 });
 
