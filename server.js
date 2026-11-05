@@ -7,18 +7,21 @@ const sharp = require("sharp");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+
 const PORT = process.env.PORT || 10000;
 const TOKEN = process.env.STREAM_TOKEN;
 
-if (!TOKEN) {
-  throw new Error("Set STREAM_TOKEN in Render Environment");
-}
+if (!TOKEN) throw new Error("Set STREAM_TOKEN in Render Environment");
 
 let queue = [];
 let active = null;
 let frame = null;
 let sequence = 0;
+
 const clients = new Map();
+
+let converting = false;
+let pendingFrame = null;
 
 function safeEqual(a, b) {
   const x = Buffer.from(a);
@@ -28,9 +31,7 @@ function safeEqual(a, b) {
 
 function authorized(req) {
   const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ")
-    ? header.slice(7)
-    : "";
+  const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   return safeEqual(token, TOKEN);
 }
 
@@ -46,6 +47,7 @@ function promote() {
   if (!active && queue.length) {
     active = queue.shift();
     frame = null;
+    pendingFrame = null;
     console.log("Now streaming:", active.name);
   }
 }
@@ -53,7 +55,7 @@ function promote() {
 app.use(express.static("public"));
 
 app.get("/health", (_, res) => {
-  res.json({ ok: true, active: !!active });
+  res.json({ ok: true, active: !!active, sequence });
 });
 
 app.get("/queue", (_, res) => {
@@ -79,15 +81,67 @@ app.post("/stop", (req, res) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  if (active) {
-    clients.get(active.id)?.close();
-  }
+  if (active) clients.get(active.id)?.close();
 
   active = null;
   frame = null;
+  pendingFrame = null;
   promote();
+
   res.json(status());
 });
+
+async function processPendingFrames() {
+  if (converting) return;
+
+  converting = true;
+
+  try {
+    while (pendingFrame) {
+      const item = pendingFrame;
+      pendingFrame = null;
+
+      if (!active || active.id !== item.id) continue;
+      if (item.ws.readyState !== WebSocket.OPEN) continue;
+
+      try {
+        const jpeg = Buffer.from(item.base64, "base64");
+
+        const rgb = await sharp(jpeg, {
+          limitInputPixels: 4000000
+        })
+          .resize(300, 300, { fit: "fill" })
+          .flatten({ background: "#000000" })
+          .removeAlpha()
+          .raw()
+          .toBuffer();
+
+        if (rgb.length !== 300 * 300 * 3) {
+          throw new Error("Unexpected RGB buffer size");
+        }
+
+        const hex = rgb.toString("hex").toUpperCase();
+
+        if (active && active.id === item.id) {
+          frame = hex;
+          sequence++;
+
+          if (sequence % 10 === 0) {
+            console.log("Converted frames:", sequence);
+          }
+        }
+      } catch (err) {
+        console.error("Frame conversion failed:", err.message);
+      }
+    }
+  } finally {
+    converting = false;
+
+    if (pendingFrame) {
+      processPendingFrames();
+    }
+  }
+}
 
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url, "http://localhost");
@@ -119,10 +173,8 @@ wss.on("connection", (ws, req) => {
   sendState();
   const ticker = setInterval(sendState, 1000);
 
-  let converting = false;
-
-  ws.on("message", async raw => {
-    if (!active || active.id !== id || converting) return;
+  ws.on("message", raw => {
+    if (!active || active.id !== id) return;
     if (raw.length > 250000) return;
 
     let msg;
@@ -141,43 +193,23 @@ wss.on("connection", (ws, req) => {
 
     if (!match || msg.data.length > 240000) return;
 
-    converting = true;
+    pendingFrame = {
+      id,
+      ws,
+      base64: match[1]
+    };
 
-    try {
-      const jpeg = Buffer.from(match[1], "base64");
-
-      // Convert the incoming JPEG to exactly 300x300 RGB pixels.
-      const rgb = await sharp(jpeg, {
-        limitInputPixels: 4000000
-      })
-        .resize(300, 300, { fit: "fill" })
-        .flatten({ background: "#000000" })
-        .removeAlpha()
-        .raw()
-        .toBuffer();
-
-      if (rgb.length !== 300 * 300 * 3) {
-        throw new Error("Unexpected RGB buffer size: " + rgb.length);
-      }
-
-      // Each pixel becomes RRGGBB: 90,000 pixels = 540,000 characters.
-      const hex = rgb.toString("hex").toUpperCase();
-
-      if (active && active.id === id) {
-        frame = hex;
-        sequence++;
-      }
-    } catch (err) {
-      console.error("Frame conversion failed:", err.message);
-    } finally {
-      converting = false;
-    }
+    processPendingFrames();
   });
 
   ws.on("close", () => {
     clearInterval(ticker);
     clients.delete(id);
     queue = queue.filter(x => x.id !== id);
+
+    if (pendingFrame && pendingFrame.id === id) {
+      pendingFrame = null;
+    }
 
     if (active && active.id === id) {
       active = null;
