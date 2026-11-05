@@ -28,6 +28,10 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "2kb" }));
 app.use(express.static("public"));
 
+// --------------------------------------------------
+// STATE
+// --------------------------------------------------
+
 let queue = [];
 let active = null;
 let frame = null;
@@ -44,19 +48,21 @@ const redemptionLocks = new Set();
 const MAX_FAILED_ATTEMPTS = 3;
 const COOLDOWN_MS = 5 * 60 * 1000;
 
---------------------------------------------------
--- SECURITY
---------------------------------------------------
+// --------------------------------------------------
+// SECURITY
+// --------------------------------------------------
 
 function safeEqual(a, b) {
     const x = Buffer.from(String(a));
     const y = Buffer.from(String(b));
 
-    return x.length === y.length && crypto.timingSafeEqual(x, y);
+    return x.length === y.length &&
+        crypto.timingSafeEqual(x, y);
 }
 
 function authorized(req) {
     const header = req.headers.authorization || "";
+
     const token = header.startsWith("Bearer ")
         ? header.slice(7)
         : "";
@@ -75,9 +81,9 @@ function status() {
     };
 }
 
---------------------------------------------------
--- QUEUE
---------------------------------------------------
+// --------------------------------------------------
+// QUEUE
+// --------------------------------------------------
 
 function promote() {
     if (!active && queue.length) {
@@ -95,7 +101,9 @@ function promoteVip(client) {
         return;
     }
 
-    const index = queue.findIndex(item => item.id === client.id);
+    const index = queue.findIndex(
+        item => item.id === client.id
+    );
 
     if (index === -1) {
         return;
@@ -104,8 +112,11 @@ function promoteVip(client) {
     queue.splice(index, 1);
     client.isVip = true;
 
-    // Insert after any VIPs already waiting.
-    const firstRegular = queue.findIndex(item => !item.isVip);
+    // Put this VIP behind existing VIPs,
+    // but ahead of all regular queue members.
+    const firstRegular = queue.findIndex(
+        item => !item.isVip
+    );
 
     if (firstRegular === -1) {
         queue.push(client);
@@ -115,12 +126,12 @@ function promoteVip(client) {
 
     promote();
 
-    console.log("VIP queue priority granted:", client.name);
+    console.log("VIP priority granted:", client.name);
 }
 
---------------------------------------------------
--- ROBLOX DATASTORE
---------------------------------------------------
+// --------------------------------------------------
+// ROBLOX DATASTORE
+// --------------------------------------------------
 
 function datastoreEntryUrl(code) {
     const datastore = encodeURIComponent(DATASTORE_NAME);
@@ -137,12 +148,15 @@ function datastoreEntryUrl(code) {
 }
 
 async function getRobloxCode(code) {
-    const response = await fetch(datastoreEntryUrl(code), {
-        method: "GET",
-        headers: {
-            "x-api-key": ROBLOX_API_KEY
+    const response = await fetch(
+        datastoreEntryUrl(code),
+        {
+            method: "GET",
+            headers: {
+                "x-api-key": ROBLOX_API_KEY
+            }
         }
-    });
+    );
 
     if (response.status === 404) {
         return null;
@@ -150,6 +164,7 @@ async function getRobloxCode(code) {
 
     if (!response.ok) {
         const details = await response.text();
+
         throw new Error(
             "Roblox lookup failed: " +
             response.status +
@@ -159,6 +174,7 @@ async function getRobloxCode(code) {
     }
 
     const result = await response.json();
+
     return result.value || null;
 }
 
@@ -169,19 +185,23 @@ async function markCodeRedeemed(code, value) {
         redeemedAt: Date.now()
     };
 
-    const response = await fetch(datastoreEntryUrl(code), {
-        method: "PATCH",
-        headers: {
-            "x-api-key": ROBLOX_API_KEY,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            value: updatedValue
-        })
-    });
+    const response = await fetch(
+        datastoreEntryUrl(code),
+        {
+            method: "PATCH",
+            headers: {
+                "x-api-key": ROBLOX_API_KEY,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                value: updatedValue
+            })
+        }
+    );
 
     if (!response.ok) {
         const details = await response.text();
+
         throw new Error(
             "Roblox update failed: " +
             response.status +
@@ -193,9 +213,9 @@ async function markCodeRedeemed(code, value) {
     return true;
 }
 
---------------------------------------------------
--- FAILED ATTEMPTS
---------------------------------------------------
+// --------------------------------------------------
+// FAILED ATTEMPTS
+// --------------------------------------------------
 
 function getAttemptState(ip) {
     let state = failedAttempts.get(ip);
@@ -229,7 +249,8 @@ function recordFailure(ip) {
 
     return {
         blocked: false,
-        attemptsLeft: MAX_FAILED_ATTEMPTS - state.attempts
+        attemptsLeft:
+            MAX_FAILED_ATTEMPTS - state.attempts
     };
 }
 
@@ -237,12 +258,16 @@ function clearFailures(ip) {
     failedAttempts.delete(ip);
 }
 
---------------------------------------------------
--- VIP REDEMPTION
---------------------------------------------------
+// --------------------------------------------------
+// VIP REDEMPTION
+// --------------------------------------------------
 
 app.post("/redeem", async (req, res) => {
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const ip =
+        req.ip ||
+        req.socket.remoteAddress ||
+        "unknown";
+
     const state = getAttemptState(ip);
 
     if (Date.now() < state.blockedUntil) {
@@ -252,19 +277,27 @@ app.post("/redeem", async (req, res) => {
 
         return res.status(429).json({
             success: false,
-            error: "Too many failed attempts. Try again in " +
+            error:
+                "Too many failed attempts. Try again in " +
                 remaining +
                 " seconds."
         });
     }
 
-    const code = String(req.body?.code || "").trim();
-    const clientId = String(req.body?.clientId || "");
+    const code = String(
+        req.body?.code || ""
+    ).trim();
+
+    const clientId = String(
+        req.body?.clientId || ""
+    );
 
     if (!/^\d{6}$/.test(code)) {
         const failure = recordFailure(ip);
 
-        return res.status(failure.blocked ? 429 : 400).json({
+        return res.status(
+            failure.blocked ? 429 : 400
+        ).json({
             success: false,
             error: failure.blocked
                 ? "Too many failed attempts. Wait five minutes."
@@ -275,14 +308,20 @@ app.post("/redeem", async (req, res) => {
 
     const client = clients.get(clientId);
 
-    if (!client || client.ws.readyState !== WebSocket.OPEN) {
+    if (
+        !client ||
+        client.ws.readyState !== WebSocket.OPEN
+    ) {
         return res.status(400).json({
             success: false,
             error: "Join the queue before redeeming your code."
         });
     }
 
-    if (client.isVip || (active && active.id === client.id)) {
+    if (
+        client.isVip ||
+        (active && active.id === client.id)
+    ) {
         return res.json({
             success: true,
             message: "You already have priority access."
@@ -308,7 +347,9 @@ app.post("/redeem", async (req, res) => {
         ) {
             const failure = recordFailure(ip);
 
-            return res.status(failure.blocked ? 429 : 400).json({
+            return res.status(
+                failure.blocked ? 429 : 400
+            ).json({
                 success: false,
                 error: failure.blocked
                     ? "Too many failed attempts. Wait five minutes."
@@ -317,15 +358,17 @@ app.post("/redeem", async (req, res) => {
             });
         }
 
-        // Save redemption before granting priority.
+        // Mark the code as redeemed before granting priority.
         await markCodeRedeemed(code, value);
 
         clearFailures(ip);
+
         promoteVip(client);
 
         return res.json({
             success: true,
-            message: "Priority Pass accepted! You have moved ahead of regular users."
+            message:
+                "Priority Pass accepted! You have moved ahead of regular users."
         });
 
     } catch (error) {
@@ -333,7 +376,8 @@ app.post("/redeem", async (req, res) => {
 
         return res.status(503).json({
             success: false,
-            error: "VIP verification is temporarily unavailable. Try again later."
+            error:
+                "VIP verification is temporarily unavailable. Try again later."
         });
 
     } finally {
@@ -341,9 +385,9 @@ app.post("/redeem", async (req, res) => {
     }
 });
 
---------------------------------------------------
--- NORMAL ROUTES
---------------------------------------------------
+// --------------------------------------------------
+// NORMAL ROUTES
+// --------------------------------------------------
 
 app.get("/health", (_, res) => {
     res.json({
@@ -396,9 +440,9 @@ app.post("/stop", (req, res) => {
     res.json(status());
 });
 
---------------------------------------------------
--- IMAGE PROCESSING
---------------------------------------------------
+// --------------------------------------------------
+// IMAGE PROCESSING
+// --------------------------------------------------
 
 async function processPendingFrames() {
     if (converting) return;
@@ -410,38 +454,60 @@ async function processPendingFrames() {
             const item = pendingFrame;
             pendingFrame = null;
 
-            if (!active || active.id !== item.id) continue;
-            if (item.ws.readyState !== WebSocket.OPEN) continue;
+            if (!active || active.id !== item.id) {
+                continue;
+            }
+
+            if (item.ws.readyState !== WebSocket.OPEN) {
+                continue;
+            }
 
             try {
-                const jpeg = Buffer.from(item.base64, "base64");
+                const jpeg = Buffer.from(
+                    item.base64,
+                    "base64"
+                );
 
                 const rgb = await sharp(jpeg, {
                     limitInputPixels: 4000000
                 })
-                    .resize(300, 300, { fit: "fill" })
-                    .flatten({ background: "#000000" })
+                    .resize(300, 300, {
+                        fit: "fill"
+                    })
+                    .flatten({
+                        background: "#000000"
+                    })
                     .removeAlpha()
                     .raw()
                     .toBuffer();
 
                 if (rgb.length !== 300 * 300 * 3) {
-                    throw new Error("Unexpected RGB buffer size");
+                    throw new Error(
+                        "Unexpected RGB buffer size"
+                    );
                 }
 
-                const hex = rgb.toString("hex").toUpperCase();
+                const hex = rgb
+                    .toString("hex")
+                    .toUpperCase();
 
                 if (active && active.id === item.id) {
                     frame = hex;
                     sequence++;
 
                     if (sequence % 10 === 0) {
-                        console.log("Converted frames:", sequence);
+                        console.log(
+                            "Converted frames:",
+                            sequence
+                        );
                     }
                 }
 
             } catch (err) {
-                console.error("Frame conversion failed:", err.message);
+                console.error(
+                    "Frame conversion failed:",
+                    err.message
+                );
             }
         }
 
@@ -454,13 +520,18 @@ async function processPendingFrames() {
     }
 }
 
---------------------------------------------------
--- WEBSOCKET QUEUE
---------------------------------------------------
+// --------------------------------------------------
+// WEBSOCKET QUEUE
+// --------------------------------------------------
 
 wss.on("connection", (ws, req) => {
-    const url = new URL(req.url, "http://localhost");
-    const token = url.searchParams.get("token") || "";
+    const url = new URL(
+        req.url,
+        "http://localhost"
+    );
+
+    const token =
+        url.searchParams.get("token") || "";
 
     if (!safeEqual(token, TOKEN)) {
         ws.close(1008, "Unauthorized");
@@ -468,6 +539,7 @@ wss.on("connection", (ws, req) => {
     }
 
     const id = crypto.randomUUID();
+
     const name = (
         url.searchParams.get("name") || "Device"
     ).slice(0, 40);
@@ -496,11 +568,19 @@ wss.on("connection", (ws, req) => {
 
     sendState();
 
-    const ticker = setInterval(sendState, 1000);
+    const ticker = setInterval(
+        sendState,
+        1000
+    );
 
     ws.on("message", raw => {
-        if (!active || active.id !== id) return;
-        if (raw.length > 250000) return;
+        if (!active || active.id !== id) {
+            return;
+        }
+
+        if (raw.length > 250000) {
+            return;
+        }
 
         let msg;
 
@@ -510,7 +590,10 @@ wss.on("connection", (ws, req) => {
             return;
         }
 
-        if (msg.type !== "frame" || typeof msg.data !== "string") {
+        if (
+            msg.type !== "frame" ||
+            typeof msg.data !== "string"
+        ) {
             return;
         }
 
@@ -518,7 +601,9 @@ wss.on("connection", (ws, req) => {
             /^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/
         );
 
-        if (!match || msg.data.length > 240000) return;
+        if (!match || msg.data.length > 240000) {
+            return;
+        }
 
         pendingFrame = {
             id,
@@ -533,28 +618,41 @@ wss.on("connection", (ws, req) => {
         clearInterval(ticker);
 
         clients.delete(id);
-        queue = queue.filter(item => item.id !== id);
 
-        if (pendingFrame && pendingFrame.id === id) {
+        queue = queue.filter(
+            item => item.id !== id
+        );
+
+        if (
+            pendingFrame &&
+            pendingFrame.id === id
+        ) {
             pendingFrame = null;
         }
 
         if (active && active.id === id) {
             active = null;
             frame = null;
+
             promote();
         }
     });
 
     ws.on("error", err => {
-        console.error("WebSocket error:", err.message);
+        console.error(
+            "WebSocket error:",
+            err.message
+        );
     });
 });
 
---------------------------------------------------
--- START SERVER
---------------------------------------------------
+// --------------------------------------------------
+// START SERVER
+// --------------------------------------------------
 
 server.listen(PORT, "0.0.0.0", () => {
-    console.log("PixelCanvas Live listening on", PORT);
+    console.log(
+        "PixelCanvas Live listening on",
+        PORT
+    );
 });
