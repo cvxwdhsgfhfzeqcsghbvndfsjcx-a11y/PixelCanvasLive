@@ -6,78 +6,399 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#100b06">
 <title>PixelCanvas Live</title>
+
 <style>
-:root{color-scheme:dark;--bg:#0c0d12;--panel:#171923;--panel2:#202332;--gold:#ffc64d;--gold2:#ff9f18;--muted:#b8bdcc;--line:#343747}
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#49300f 0,#17120c 28%,#0c0d12 65%);color:#f6f4ef;font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-button,input{font:inherit}
-button{border:0;border-radius:11px;padding:12px 16px;font-weight:750;cursor:pointer;transition:filter .15s,transform .15s}
-button:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
-button:disabled{opacity:.42;cursor:not-allowed}
-input{width:100%;padding:13px 14px;margin:5px 0;border:1px solid var(--line);border-radius:10px;background:#10131c;color:#fff;outline:none}
-input:focus{border-color:var(--gold);box-shadow:0 0 0 3px #ffc64d22}
-.wrap{width:min(980px,100% - 32px);margin:0 auto;padding:26px 0 50px}
-.brand{display:flex;align-items:center;gap:13px;margin:0 0 20px}
-.brand img{width:58px;height:58px;object-fit:contain;border-radius:14px}
-.brand h1{font-size:clamp(24px,5vw,36px);line-height:1;margin:0;letter-spacing:.02em}
-.brand span{display:block;color:var(--gold);font-size:12px;letter-spacing:.42em;font-weight:900;margin-top:6px}
-.hero{position:relative;overflow:hidden;border:1px solid #7b551f;border-radius:20px;background:#15100a;box-shadow:0 15px 55px #0008;margin-bottom:20px}
-.hero img{width:100%;height:auto;display:block;max-height:390px;object-fit:cover}
-main{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-section{background:linear-gradient(145deg,#1b1f2d,#151822);border:1px solid #2a3040;border-radius:17px;padding:20px;min-width:0;box-shadow:0 10px 30px #0003}
-section h2{font-size:19px;margin:0 0 5px}
-p{color:var(--muted);margin:7px 0 14px}
-small{color:var(--muted)}
-input{display:block}
-.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-.primary{background:linear-gradient(135deg,#ffe17b,#ffad24);color:#241707}
-.secondary{background:#82aaff;color:#101a30}
-.stop{background:#f2b66d;color:#241606}
-.neutral{background:#343a4d;color:#f5f5f5}
-#status{white-space:pre-wrap;line-height:1.55;margin-top:14px;padding:12px 13px;background:#10131c;border:1px solid #2d3343;border-radius:11px;color:#e9eaf0;min-height:48px}
-#queueAd{display:none;grid-column:1/-1;padding:0;overflow:hidden;border-color:#a8792b;background:linear-gradient(115deg,#21170b,#171923 65%);box-shadow:0 12px 35px #0005}
-.ad-inner{display:grid;grid-template-columns:190px 1fr;align-items:center;gap:18px;padding:17px}
-.ad-inner img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px;border:1px solid #8d6427}
-.ad-copy h2{color:#ffd36c;font-size:22px;margin:0 0 4px}
-.ad-copy p{margin:4px 0 12px}
-.ad-buy{background:linear-gradient(135deg,#ffe17b,#ffad24);color:#251807}
-.ad-note{display:block;margin-top:8px;font-size:11px;color:#b9ad96}
-video{width:100%;min-height:180px;max-height:420px;background:#08090d;border-radius:11px;display:block;margin-top:12px}
+:root {
+  color-scheme: dark;
+  --bg: #0c0d12;
+  --panel: #171923;
+  --panel2: #202332;
+  --gold: #ffc64d;
+  --gold2: #ff9f18;
+  --muted: #b8bdcc;
+  --line: #343747;
+}
 
-/* Mirror only the camera preview */
-video.camera-mirror{transform:scaleX(-1)}
+* {
+  box-sizing: border-box;
+}
 
-.full{grid-column:1/-1}
-@media(max-width:700px){.wrap{width:min(100% - 22px,560px);padding-top:16px}main{grid-template-columns:1fr}.hero img{min-height:150px;object-fit:cover}.ad-inner{grid-template-columns:105px 1fr;gap:12px;padding:12px}.ad-copy h2{font-size:18px}.ad-copy p{font-size:13px}.ad-buy{padding:10px 12px;font-size:13px}.brand img{width:48px;height:48px}}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(ellipse at 50% -20%,#49300f 0,#17120c 28%,#0c0d12 65%);
+  color: #f6f4ef;
+  font: 16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+
+button,input {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  border-radius: 11px;
+  padding: 12px 16px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: filter .15s,transform .15s;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  opacity: .42;
+  cursor: not-allowed;
+}
+
+input {
+  width: 100%;
+  padding: 13px 14px;
+  margin: 5px 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #10131c;
+  color: #fff;
+  outline: none;
+}
+
+input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px #ffc64d22;
+}
+
+.wrap {
+  width: min(980px,100% - 32px);
+  margin: 0 auto;
+  padding: 26px 0 50px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  margin: 0 0 20px;
+}
+
+.brand img {
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.brand h1 {
+  font-size: clamp(24px,5vw,36px);
+  line-height: 1;
+  margin: 0;
+  letter-spacing: .02em;
+}
+
+.brand span {
+  display: block;
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: .42em;
+  font-weight: 900;
+  margin-top: 6px;
+}
+
+.hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #7b551f;
+  border-radius: 20px;
+  background: #15100a;
+  box-shadow: 0 15px 55px #0008;
+  margin-bottom: 20px;
+}
+
+.hero img {
+  width: 100%;
+  height: auto;
+  display: block;
+  max-height: 390px;
+  object-fit: cover;
+}
+
+main {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+section {
+  background: linear-gradient(145deg,#1b1f2d,#151822);
+  border: 1px solid #2a3040;
+  border-radius: 17px;
+  padding: 20px;
+  min-width: 0;
+  box-shadow: 0 10px 30px #0003;
+}
+
+section h2 {
+  font-size: 19px;
+  margin: 0 0 5px;
+}
+
+p {
+  color: var(--muted);
+  margin: 7px 0 14px;
+}
+
+small {
+  color: var(--muted);
+}
+
+input {
+  display: block;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.primary {
+  background: linear-gradient(135deg,#ffe17b,#ffad24);
+  color: #241707;
+}
+
+.secondary {
+  background: #82aaff;
+  color: #101a30;
+}
+
+.stop {
+  background: #f2b66d;
+  color: #241606;
+}
+
+.neutral {
+  background: #343a4d;
+  color: #f5f5f5;
+}
+
+#status {
+  white-space: pre-wrap;
+  line-height: 1.55;
+  margin-top: 14px;
+  padding: 12px 13px;
+  background: #10131c;
+  border: 1px solid #2d3343;
+  border-radius: 11px;
+  color: #e9eaf0;
+  min-height: 48px;
+}
+
+#vipStatus {
+  white-space: pre-wrap;
+  margin-top: 9px;
+  color: #ffd36c;
+  font-size: 13px;
+  min-height: 20px;
+}
+
+.vip-entry {
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid #343747;
+}
+
+.vip-entry h3 {
+  color: #ffd36c;
+  font-size: 16px;
+  margin: 0 0 5px;
+}
+
+.vip-entry p {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+#vipCode {
+  text-align: center;
+  letter-spacing: .3em;
+  font-weight: 800;
+  font-size: 20px;
+}
+
+#queueAd {
+  display: none;
+  grid-column: 1/-1;
+  padding: 0;
+  overflow: hidden;
+  border-color: #a8792b;
+  background: linear-gradient(115deg,#21170b,#171923 65%);
+  box-shadow: 0 12px 35px #0005;
+}
+
+.ad-inner {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  align-items: center;
+  gap: 18px;
+  padding: 17px;
+}
+
+.ad-inner img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 13px;
+  border: 1px solid #8d6427;
+}
+
+.ad-copy h2 {
+  color: #ffd36c;
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.ad-copy p {
+  margin: 4px 0 12px;
+}
+
+.ad-buy {
+  background: linear-gradient(135deg,#ffe17b,#ffad24);
+  color: #251807;
+}
+
+.ad-note {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #b9ad96;
+}
+
+video {
+  width: 100%;
+  min-height: 180px;
+  max-height: 420px;
+  background: #08090d;
+  border-radius: 11px;
+  display: block;
+  margin-top: 12px;
+}
+
+video.camera-mirror {
+  transform: scaleX(-1);
+}
+
+.full {
+  grid-column: 1/-1;
+}
+
+@media(max-width:700px) {
+  .wrap {
+    width: min(100% - 22px,560px);
+    padding-top: 16px;
+  }
+
+  main {
+    grid-template-columns: 1fr;
+  }
+
+  .hero img {
+    min-height: 150px;
+    object-fit: cover;
+  }
+
+  .ad-inner {
+    grid-template-columns: 105px 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .ad-copy h2 {
+    font-size: 18px;
+  }
+
+  .ad-copy p {
+    font-size: 13px;
+  }
+
+  .ad-buy {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .brand img {
+    width: 48px;
+    height: 48px;
+  }
+}
 </style>
 </head>
+
 <body>
 <div class="wrap">
+
   <header class="brand">
     <img src="/priority-logo.png" alt="PixelCanvas Live logo">
-    <div><h1>PIXELCANVAS</h1><span>LIVE</span></div>
+    <div>
+      <h1>PIXELCANVAS</h1>
+      <span>LIVE</span>
+    </div>
   </header>
 
   <div class="hero">
-    <img src="/priority-banner.png" alt="PixelCanvas Live Priority Pass — skip the line and get priority access">
+    <img src="/priority-banner.png"
+         alt="PixelCanvas Live Priority Pass">
   </div>
 
   <main>
+
     <section>
       <h2>Join the live queue</h2>
       <p>Enter your private stream token and device name.</p>
-      <input id="token" type="password" placeholder="Private stream token" autocomplete="off">
-      <input id="name" maxlength="40" placeholder="Device name">
+
+      <input id="token"
+             type="password"
+             placeholder="Private stream token"
+             autocomplete="off">
+
+      <input id="name"
+             maxlength="40"
+             placeholder="Device name">
+
       <div class="actions">
         <button id="join" class="primary">Join Queue</button>
         <button id="leave" class="neutral" disabled>Leave Queue</button>
       </div>
-      <div id="status" role="status" aria-live="polite">Not connected.</div>
+
+      <div id="status" role="status" aria-live="polite">
+        Not connected.
+      </div>
+
+      <div class="vip-entry">
+        <h3>👑 Priority Pass</h3>
+        <p>Already purchased a Priority Pass? Enter your six-digit code after joining the queue.</p>
+
+        <input id="vipCode"
+               type="text"
+               inputmode="numeric"
+               maxlength="6"
+               placeholder="000000"
+               autocomplete="off">
+
+        <button id="redeemVip" class="primary" disabled>
+          REDEEM PRIORITY CODE
+        </button>
+
+        <div id="vipStatus" role="status" aria-live="polite"></div>
+      </div>
     </section>
 
     <section>
       <h2>Camera streaming</h2>
       <p>Join the queue and wait until it is your turn before starting.</p>
+
       <div class="actions">
         <button id="camera" class="secondary" disabled>Start Camera</button>
         <button id="switch" class="neutral" disabled>Switch Camera</button>
@@ -87,12 +408,19 @@ video.camera-mirror{transform:scaleX(-1)}
 
     <section id="queueAd" aria-live="polite">
       <div class="ad-inner">
-        <img src="/priority-logo.png" alt="Gold PixelCanvas Priority Pass crown logo">
+        <img src="/priority-logo.png" alt="Priority Pass logo">
+
         <div class="ad-copy">
           <h2>Waiting in line? Get Priority Pass 👑</h2>
           <p>Get ahead of regular waiting users with priority queue access.</p>
-          <button id="buyPriority" class="ad-buy">BUY PRIORITY PASS ON ROBLOX</button>
-          <small class="ad-note">Opens the Roblox gamepass page. Priority queue verification must be enabled by the service before purchases change queue order.</small>
+
+          <button id="buyPriority" class="ad-buy">
+            BUY PRIORITY PASS ON ROBLOX
+          </button>
+
+          <small class="ad-note">
+            After purchasing, open the Roblox shop to get your six-digit code.
+          </small>
         </div>
       </div>
     </section>
@@ -100,13 +428,22 @@ video.camera-mirror{transform:scaleX(-1)}
     <section class="full">
       <h2>Screen sharing</h2>
       <p>On supported browsers, share a screen or window instead of your camera.</p>
+
       <div class="actions">
         <button id="screen" class="secondary" disabled>Start Screen Sharing</button>
         <button id="stopScreen" class="stop" disabled>Stop Screen Sharing</button>
       </div>
+
       <video id="preview" autoplay muted playsinline></video>
-      <p><small>Your camera or screen is captured only after you choose to start it. Keep this page open while streaming.</small></p>
+
+      <p>
+        <small>
+          Your camera or screen is captured only after you choose to start it.
+          Keep this page open while streaming.
+        </small>
+      </p>
     </section>
+
   </main>
 </div>
 
@@ -115,6 +452,7 @@ video.camera-mirror{transform:scaleX(-1)}
 
 const GAMEPASS_URL = "https://www.roblox.com/game-pass/2068040630";
 const $ = id => document.getElementById(id);
+
 let ws = null;
 let media = null;
 let timer = null;
@@ -129,17 +467,32 @@ function say(message) {
   $("status").textContent = message;
 }
 
+function vipSay(message) {
+  $("vipStatus").textContent = message;
+}
+
 function updateButtons() {
   const connected = !!ws;
   const canStream = connected && isLive;
+
   $("join").disabled = connected;
   $("leave").disabled = !connected;
+  $("redeemVip").disabled = !connected;
+
   $("camera").disabled = !canStream || !!media || starting;
   $("screen").disabled = !canStream || !!media || starting;
-  $("switch").disabled = !canStream || captureKind !== "camera" || starting;
-  $("stopCamera").disabled = !media || captureKind !== "camera";
-  $("stopScreen").disabled = !media || captureKind !== "screen";
-  $("queueAd").style.display = connected && !isLive ? "block" : "none";
+
+  $("switch").disabled =
+    !canStream || captureKind !== "camera" || starting;
+
+  $("stopCamera").disabled =
+    !media || captureKind !== "camera";
+
+  $("stopScreen").disabled =
+    !media || captureKind !== "screen";
+
+  $("queueAd").style.display =
+    connected && !isLive ? "block" : "none";
 }
 
 function stopCapture() {
@@ -159,6 +512,7 @@ function stopCapture() {
   captureKind = "";
   $("preview").classList.remove("camera-mirror");
   $("preview").srcObject = null;
+
   updateButtons();
 }
 
@@ -168,17 +522,17 @@ async function startCapture(kind) {
   const devices = navigator.mediaDevices;
 
   if (!devices) {
-    say("Camera and screen capture require HTTPS or localhost in a supported browser.");
+    say("Camera and screen capture require HTTPS or localhost.");
     return;
   }
 
   if (kind === "camera" && !devices.getUserMedia) {
-    say("Camera capture is unavailable in this browser. Try an updated browser over HTTPS.");
+    say("Camera capture is unavailable in this browser.");
     return;
   }
 
   if (kind === "screen" && !devices.getDisplayMedia) {
-    say("Screen sharing is not supported in this browser. Try a supported desktop browser.");
+    say("Screen sharing is not supported in this browser.");
     return;
   }
 
@@ -212,7 +566,6 @@ async function startCapture(kind) {
     const video = $("preview");
     video.srcObject = chosen;
 
-    // Mirror the visible preview only when using the camera.
     video.classList.toggle("camera-mirror", kind === "camera");
 
     await video.play();
@@ -231,6 +584,7 @@ async function startCapture(kind) {
         if (myGeneration !== generation) return;
 
         stopCapture();
+
         say(kind === "camera"
           ? "Camera stopped."
           : "Screen sharing stopped. You remain in the queue.");
@@ -238,18 +592,22 @@ async function startCapture(kind) {
     }
 
     timer = setInterval(() => {
-      if (!ws || ws.readyState !== WebSocket.OPEN || !isLive || !media || video.readyState < 2) return;
+      if (
+        !ws ||
+        ws.readyState !== WebSocket.OPEN ||
+        !isLive ||
+        !media ||
+        video.readyState < 2
+      ) return;
 
       try {
         if (kind === "camera") {
-          // Flip the actual outgoing camera frame horizontally.
           ctx.save();
           ctx.translate(canvas.width, 0);
           ctx.scale(-1, 1);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           ctx.restore();
         } else {
-          // Screen sharing is not mirrored.
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         }
 
@@ -257,6 +615,7 @@ async function startCapture(kind) {
           type: "frame",
           data: canvas.toDataURL("image/jpeg", 0.65)
         }));
+
       } catch (error) {
         console.error("Frame capture/send failed:", error);
       }
@@ -272,9 +631,11 @@ async function startCapture(kind) {
     }
 
     if (myGeneration === generation) {
-      say("Could not start " + kind + ": " + (error.message || "Unknown error") +
+      say("Could not start " + kind + ": " +
+        (error.message || "Unknown error") +
         "\nCheck browser permissions and try again.");
     }
+
   } finally {
     if (myGeneration === generation) {
       starting = false;
@@ -282,6 +643,10 @@ async function startCapture(kind) {
     }
   }
 }
+
+// --------------------------------------------------
+// CAMERA AND SCREEN BUTTONS
+// --------------------------------------------------
 
 $("camera").addEventListener("click", () => startCapture("camera"));
 $("screen").addEventListener("click", () => startCapture("screen"));
@@ -309,6 +674,66 @@ $("stopScreen").addEventListener("click", () => {
   say("Screen sharing stopped. You remain in the queue.");
 });
 
+// --------------------------------------------------
+// VIP CODE REDEMPTION
+// --------------------------------------------------
+
+$("vipCode").addEventListener("input", () => {
+  $("vipCode").value = $("vipCode").value
+    .replace(/\D/g, "")
+    .slice(0, 6);
+});
+
+$("redeemVip").addEventListener("click", async () => {
+  if (!ws || !myId) {
+    vipSay("Join the queue first.");
+    return;
+  }
+
+  const code = $("vipCode").value.trim();
+
+  if (!/^\d{6}$/.test(code)) {
+    vipSay("Enter your six-digit code.");
+    return;
+  }
+
+  $("redeemVip").disabled = true;
+  $("redeemVip").textContent = "CHECKING CODE...";
+  vipSay("Checking your Priority Pass...");
+
+  try {
+    const response = await fetch("/redeem", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        code,
+        clientId: myId
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      vipSay(result.error || "Code could not be redeemed.");
+    } else {
+      vipSay(result.message || "Priority Pass accepted!");
+      $("vipCode").value = "";
+    }
+
+  } catch (error) {
+    vipSay("Could not contact the server. Try again.");
+  } finally {
+    $("redeemVip").textContent = "REDEEM PRIORITY CODE";
+    updateButtons();
+  }
+});
+
+// --------------------------------------------------
+// JOIN QUEUE
+// --------------------------------------------------
+
 $("join").addEventListener("click", () => {
   if (ws) return;
 
@@ -324,7 +749,8 @@ $("join").addEventListener("click", () => {
 
   const socket = new WebSocket(
     proto + "//" + location.host + "/?token=" +
-    encodeURIComponent(token) + "&name=" + encodeURIComponent(name)
+    encodeURIComponent(token) +
+    "&name=" + encodeURIComponent(name)
   );
 
   ws = socket;
@@ -355,15 +781,22 @@ $("join").addEventListener("click", () => {
 
     const queue = Array.isArray(state.queue) ? state.queue : [];
     const queueIndex = queue.findIndex(device => device.id === myId);
-    const position = isLive ? 0 : (queueIndex >= 0 ? queueIndex + 1 : null);
 
-    say((isLive ? "YOU ARE LIVE" : "Waiting in queue") +
-      (isLive ? "" : "\nYour queue position: " + (position ? "#" + position : "calculating...")) +
+    const position = isLive
+      ? 0
+      : (queueIndex >= 0 ? queueIndex + 1 : null);
+
+    say(
+      (isLive ? "YOU ARE LIVE" : "Waiting in queue") +
+      (isLive ? "" :
+        "\nYour queue position: " +
+        (position ? "#" + position : "calculating...")) +
       "\nActive device: " + (state.active || "none") +
       "\nDevices waiting: " + queue.length +
       (isLive
         ? "\nStart your camera or screen sharing below."
-        : "\nStreaming controls unlock when it is your turn."));
+        : "\nStreaming controls unlock when it is your turn.")
+    );
 
     updateButtons();
   };
@@ -380,15 +813,22 @@ $("join").addEventListener("click", () => {
     myId = null;
     isLive = false;
 
+    vipSay("Join the queue to redeem a code.");
     say("Disconnected from the queue.");
+
     updateButtons();
   };
 });
+
+// --------------------------------------------------
+// LEAVE QUEUE
+// --------------------------------------------------
 
 $("leave").addEventListener("click", () => {
   const socket = ws;
 
   stopCapture();
+
   isLive = false;
   ws = null;
   myId = null;
@@ -399,13 +839,17 @@ $("leave").addEventListener("click", () => {
   updateButtons();
 });
 
+// --------------------------------------------------
+// STARTUP
+// --------------------------------------------------
+
 if (!window.isSecureContext) {
   say("Warning: camera and screen capture generally require HTTPS or localhost.");
 }
 
 updateButtons();
 
-console.log("[PixelCanvas Live] Mirrored camera, screen sharing and queue promotion loaded.");
+console.log("[PixelCanvas Live] VIP redemption, camera and screen sharing loaded.");
 </script>
 </body>
 </html>
