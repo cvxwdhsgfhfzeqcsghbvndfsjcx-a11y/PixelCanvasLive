@@ -3,55 +3,112 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#100b06">
 <title>PixelCanvas Live</title>
 <style>
+:root{color-scheme:dark;--bg:#0c0d12;--panel:#171923;--panel2:#202332;--gold:#ffc64d;--gold2:#ff9f18;--muted:#b8bdcc;--line:#343747}
 *{box-sizing:border-box}
-body{font:16px system-ui;background:#10131b;color:#f4f6ff;max-width:760px;margin:25px auto;padding:16px}
-section{background:#1b2030;border-radius:16px;padding:20px;margin:14px 0}
-button,input{font:inherit;padding:12px;border-radius:9px;border:0;margin:5px 0;max-width:100%}
-button{background:#73e0c1;color:#102018;font-weight:bold;cursor:pointer}
-button:disabled{opacity:.45;cursor:not-allowed}
-input{width:100%;background:#30374a;color:white}
-#status{white-space:pre-wrap;line-height:1.6;margin-top:12px}
-video{width:100%;min-height:180px;max-height:420px;background:#08090d;border-radius:10px;display:block}
-small{color:#b7bfd3}
-.secondary{background:#75a7ff;color:#101a30}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#49300f 0,#17120c 28%,#0c0d12 65%);color:#f6f4ef;font:16px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input{font:inherit}
+button{border:0;border-radius:11px;padding:12px 16px;font-weight:750;cursor:pointer;transition:filter .15s,transform .15s}
+button:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
+button:disabled{opacity:.42;cursor:not-allowed}
+input{width:100%;padding:13px 14px;margin:5px 0;border:1px solid var(--line);border-radius:10px;background:#10131c;color:#fff;outline:none}
+input:focus{border-color:var(--gold);box-shadow:0 0 0 3px #ffc64d22}
+.wrap{width:min(980px,100% - 32px);margin:0 auto;padding:26px 0 50px}
+.brand{display:flex;align-items:center;gap:13px;margin:0 0 20px}
+.brand img{width:58px;height:58px;object-fit:contain;border-radius:14px}
+.brand h1{font-size:clamp(24px,5vw,36px);line-height:1;margin:0;letter-spacing:.02em}
+.brand span{display:block;color:var(--gold);font-size:12px;letter-spacing:.42em;font-weight:900;margin-top:6px}
+.hero{position:relative;overflow:hidden;border:1px solid #7b551f;border-radius:20px;background:#15100a;box-shadow:0 15px 55px #0008;margin-bottom:20px}
+.hero img{width:100%;height:auto;display:block;max-height:390px;object-fit:cover}
+main{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+section{background:linear-gradient(145deg,#1b1f2d,#151822);border:1px solid #2a3040;border-radius:17px;padding:20px;min-width:0;box-shadow:0 10px 30px #0003}
+section h2{font-size:19px;margin:0 0 5px}
+p{color:var(--muted);margin:7px 0 14px}
+small{color:var(--muted)}
+input{display:block}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.primary{background:linear-gradient(135deg,#ffe17b,#ffad24);color:#241707}
+.secondary{background:#82aaff;color:#101a30}
 .stop{background:#f2b66d;color:#241606}
+.neutral{background:#343a4d;color:#f5f5f5}
+#status{white-space:pre-wrap;line-height:1.55;margin-top:14px;padding:12px 13px;background:#10131c;border:1px solid #2d3343;border-radius:11px;color:#e9eaf0;min-height:48px}
+#queueAd{display:none;grid-column:1/-1;padding:0;overflow:hidden;border-color:#a8792b;background:linear-gradient(115deg,#21170b,#171923 65%);box-shadow:0 12px 35px #0005}
+.ad-inner{display:grid;grid-template-columns:190px 1fr;align-items:center;gap:18px;padding:17px}
+.ad-inner img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:13px;border:1px solid #8d6427}
+.ad-copy h2{color:#ffd36c;font-size:22px;margin:0 0 4px}
+.ad-copy p{margin:4px 0 12px}
+.ad-buy{background:linear-gradient(135deg,#ffe17b,#ffad24);color:#251807}
+.ad-note{display:block;margin-top:8px;font-size:11px;color:#b9ad96}
+video{width:100%;min-height:180px;max-height:420px;background:#08090d;border-radius:11px;display:block;margin-top:12px}
+.full{grid-column:1/-1}
+@media(max-width:700px){.wrap{width:min(100% - 22px,560px);padding-top:16px}main{grid-template-columns:1fr}.hero img{min-height:150px;object-fit:cover}.ad-inner{grid-template-columns:105px 1fr;gap:12px;padding:12px}.ad-copy h2{font-size:18px}.ad-copy p{font-size:13px}.ad-buy{padding:10px 12px;font-size:13px}.brand img{width:48px;height:48px}}
 </style>
 </head>
 <body>
-<h1>PixelCanvas Live</h1>
+<div class="wrap">
+  <header class="brand">
+    <img src="/priority-logo.png" alt="PixelCanvas Live logo">
+    <div><h1>PIXELCANVAS</h1><span>LIVE</span></div>
+  </header>
 
-<section>
-<h2>Join the live queue</h2>
-<p>Enter your private stream token and device name.</p>
-<input id="token" type="password" placeholder="Private stream token" autocomplete="off">
-<input id="name" maxlength="40" placeholder="Device name">
-<button id="join">Join Queue</button>
-<button id="leave" disabled>Leave Queue</button>
-<div id="status">Not connected.</div>
-</section>
+  <div class="hero">
+    <img src="/priority-banner.png" alt="PixelCanvas Live Priority Pass — skip the line and get priority access">
+  </div>
 
-<section>
-<h2>Camera streaming</h2>
-<p>Join the queue and wait until it is your turn before starting.</p>
-<button id="camera" class="secondary" disabled>Start Camera</button>
-<button id="switch" disabled>Switch Camera</button>
-<button id="stopCamera" class="stop" disabled>Stop Camera</button>
-</section>
+  <main>
+    <section>
+      <h2>Join the live queue</h2>
+      <p>Enter your private stream token and device name.</p>
+      <input id="token" type="password" placeholder="Private stream token" autocomplete="off">
+      <input id="name" maxlength="40" placeholder="Device name">
+      <div class="actions">
+        <button id="join" class="primary">Join Queue</button>
+        <button id="leave" class="neutral" disabled>Leave Queue</button>
+      </div>
+      <div id="status" role="status" aria-live="polite">Not connected.</div>
+    </section>
 
-<section>
-<h2>Screen sharing</h2>
-<p>On supported browsers, share a screen or window instead of your camera.</p>
-<button id="screen" class="secondary" disabled>Start Screen Sharing</button>
-<button id="stopScreen" class="stop" disabled>Stop Screen Sharing</button>
-<video id="preview" autoplay muted playsinline></video>
-<p><small>Your camera or screen is captured only after you choose to start it. Keep this page open while streaming.</small></p>
-</section>
+    <section>
+      <h2>Camera streaming</h2>
+      <p>Join the queue and wait until it is your turn before starting.</p>
+      <div class="actions">
+        <button id="camera" class="secondary" disabled>Start Camera</button>
+        <button id="switch" class="neutral" disabled>Switch Camera</button>
+        <button id="stopCamera" class="stop" disabled>Stop Camera</button>
+      </div>
+    </section>
+
+    <section id="queueAd" aria-live="polite">
+      <div class="ad-inner">
+        <img src="/priority-logo.png" alt="Gold PixelCanvas Priority Pass crown logo">
+        <div class="ad-copy">
+          <h2>Waiting in line? Get Priority Pass 👑</h2>
+          <p>Get ahead of regular waiting users with priority queue access.</p>
+          <button id="buyPriority" class="ad-buy">BUY PRIORITY PASS ON ROBLOX</button>
+          <small class="ad-note">Opens the Roblox gamepass page. Priority queue verification must be enabled by the service before purchases change queue order.</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="full">
+      <h2>Screen sharing</h2>
+      <p>On supported browsers, share a screen or window instead of your camera.</p>
+      <div class="actions">
+        <button id="screen" class="secondary" disabled>Start Screen Sharing</button>
+        <button id="stopScreen" class="stop" disabled>Stop Screen Sharing</button>
+      </div>
+      <video id="preview" autoplay muted playsinline></video>
+      <p><small>Your camera or screen is captured only after you choose to start it. Keep this page open while streaming.</small></p>
+    </section>
+  </main>
+</div>
 
 <script>
 "use strict";
 
+const GAMEPASS_URL = "https://www.roblox.com/game-pass/2068040630";
 const $ = id => document.getElementById(id);
 let ws = null;
 let media = null;
@@ -77,6 +134,7 @@ function updateButtons() {
   $("switch").disabled = !canStream || captureKind !== "camera" || starting;
   $("stopCamera").disabled = !media || captureKind !== "camera";
   $("stopScreen").disabled = !media || captureKind !== "screen";
+  $("queueAd").style.display = connected && !isLive ? "block" : "none";
 }
 
 function stopCapture() {
@@ -103,27 +161,25 @@ async function startCapture(kind) {
     say("Camera and screen capture require HTTPS or localhost in a supported browser.");
     return;
   }
-
   if (kind === "camera" && !devices.getUserMedia) {
     say("Camera capture is unavailable in this browser. Try an updated browser over HTTPS.");
     return;
   }
   if (kind === "screen" && !devices.getDisplayMedia) {
-    say("Screen sharing is not supported by this browser. Try a supported desktop browser.");
+    say("Screen sharing is not supported in this browser. Try a supported desktop browser.");
     return;
   }
 
   starting = true;
   const myGeneration = ++generation;
   updateButtons();
-
   let chosen = null;
 
   try {
     if (kind === "camera") {
       chosen = await devices.getUserMedia({
         audio: false,
-        video: true
+        video: { facingMode: { ideal: facing } }
       });
     } else {
       chosen = await devices.getDisplayMedia({
@@ -142,35 +198,27 @@ async function startCapture(kind) {
     const video = $("preview");
     video.srcObject = chosen;
     await video.play();
-
     if (myGeneration !== generation || !media) return;
 
     const canvas = document.createElement("canvas");
     canvas.width = 200;
     canvas.height = 200;
     const ctx = canvas.getContext("2d", { alpha: false });
-
     const track = chosen.getVideoTracks()[0];
+
     if (track) {
       track.addEventListener("ended", () => {
         if (myGeneration !== generation) return;
         stopCapture();
-        say(kind === "camera"
-          ? "Camera stopped."
-          : "Screen sharing stopped. You remain in the queue.");
+        say(kind === "camera" ? "Camera stopped." : "Screen sharing stopped. You remain in the queue.");
       }, { once: true });
     }
 
     timer = setInterval(() => {
-      if (!ws || ws.readyState !== WebSocket.OPEN ||
-          !isLive || !media || video.readyState < 2) return;
-
+      if (!ws || ws.readyState !== WebSocket.OPEN || !isLive || !media || video.readyState < 2) return;
       try {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        ws.send(JSON.stringify({
-          type: "frame",
-          data: canvas.toDataURL("image/jpeg", 0.65)
-        }));
+        ws.send(JSON.stringify({ type: "frame", data: canvas.toDataURL("image/jpeg", 0.65) }));
       } catch (error) {
         console.error("Frame capture/send failed:", error);
       }
@@ -180,12 +228,9 @@ async function startCapture(kind) {
       ? "CAMERA STREAM ACTIVE\nSending frames to the live queue."
       : "SCREEN SHARING ACTIVE\nSending frames to the live queue.");
   } catch (error) {
-    if (chosen && chosen !== media) {
-      chosen.getTracks().forEach(track => track.stop());
-    }
+    if (chosen && chosen !== media) chosen.getTracks().forEach(track => track.stop());
     if (myGeneration === generation) {
-      say("Could not start " + kind + ": " +
-        (error.message || "Unknown error") +
+      say("Could not start " + kind + ": " + (error.message || "Unknown error") +
         "\nCheck browser permissions and try again.");
     }
   } finally {
@@ -198,6 +243,9 @@ async function startCapture(kind) {
 
 $("camera").addEventListener("click", () => startCapture("camera"));
 $("screen").addEventListener("click", () => startCapture("screen"));
+$("buyPriority").addEventListener("click", () => {
+  window.open(GAMEPASS_URL, "_blank", "noopener,noreferrer");
+});
 
 $("switch").addEventListener("click", async () => {
   if (captureKind !== "camera" || starting || !isLive) return;
@@ -210,7 +258,6 @@ $("stopCamera").addEventListener("click", () => {
   stopCapture();
   say("Camera stopped. You remain in the queue.");
 });
-
 $("stopScreen").addEventListener("click", () => {
   stopCapture();
   say("Screen sharing stopped. You remain in the queue.");
@@ -218,7 +265,6 @@ $("stopScreen").addEventListener("click", () => {
 
 $("join").addEventListener("click", () => {
   if (ws) return;
-
   const token = $("token").value.trim();
   if (!token) {
     say("Enter your private stream token first.");
@@ -242,22 +288,21 @@ $("join").addEventListener("click", () => {
 
   socket.onmessage = event => {
     let state;
-    try {
-      state = JSON.parse(event.data);
-    } catch {
-      return;
-    }
+    try { state = JSON.parse(event.data); } catch { return; }
     if (state.type !== "state") return;
 
     myId = state.yourId;
     isLive = state.active === myId;
-
     if (!isLive && (media || starting)) stopCapture();
 
+    const queue = Array.isArray(state.queue) ? state.queue : [];
+    const queueIndex = queue.findIndex(device => device.id === myId);
+    const position = isLive ? 0 : (queueIndex >= 0 ? queueIndex + 1 : null);
+
     say((isLive ? "YOU ARE LIVE" : "Waiting in queue") +
+      (isLive ? "" : "\nYour queue position: " + (position ? "#" + position : "calculating...")) +
       "\nActive device: " + (state.active || "none") +
-      "\nDevices waiting: " +
-      (Array.isArray(state.queue) ? state.queue.length : 0) +
+      "\nDevices waiting: " + queue.length +
       (isLive
         ? "\nStart your camera or screen sharing below."
         : "\nStreaming controls unlock when it is your turn."));
@@ -265,10 +310,7 @@ $("join").addEventListener("click", () => {
     updateButtons();
   };
 
-  socket.onerror = () => {
-    say("Connection error. Check the deployed service and stream token.");
-  };
-
+  socket.onerror = () => say("Connection error. Check the deployed service and stream token.");
   socket.onclose = () => {
     stopCapture();
     if (ws === socket) ws = null;
@@ -293,9 +335,8 @@ $("leave").addEventListener("click", () => {
 if (!window.isSecureContext) {
   say("Warning: camera and screen capture generally require HTTPS or localhost.");
 }
-
 updateButtons();
-console.log("[PixelCanvas Live] Camera and screen controls loaded.");
+console.log("[PixelCanvas Live] Camera, screen sharing and queue promotion loaded.");
 </script>
 </body>
 </html>

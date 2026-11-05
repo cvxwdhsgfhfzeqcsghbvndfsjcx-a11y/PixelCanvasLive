@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PixelCanvas Live</title>
+<style>
+*{box-sizing:border-box}
+body{font:16px system-ui;background:#10131b;color:#f4f6ff;max-width:760px;margin:25px auto;padding:16px}
+section{background:#1b2030;border-radius:16px;padding:20px;margin:14px 0}
+button,input{font:inherit;padding:12px;border-radius:9px;border:0;margin:5px 0;max-width:100%}
+button{background:#73e0c1;color:#102018;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+input{width:100%;background:#30374a;color:white}
+#status{white-space:pre-wrap;line-height:1.6;margin-top:12px}
+video{width:100%;min-height:180px;max-height:420px;background:#08090d;border-radius:10px;display:block}
+small{color:#b7bfd3}
+.secondary{background:#75a7ff;color:#101a30}
+.stop{background:#f2b66d;color:#241606}
+</style>
+</head>
+<body>
+<h1>PixelCanvas Live</h1>
+
+<section>
+<h2>Join the live queue</h2>
+<p>Enter your private stream token and device name.</p>
+<input id="token" type="password" placeholder="Private stream token" autocomplete="off">
+<input id="name" maxlength="40" placeholder="Device name">
+<button id="join">Join Queue</button>
+<button id="leave" disabled>Leave Queue</button>
+<div id="status">Not connected.</div>
+</section>
+
+<section>
+<h2>Camera streaming</h2>
+<p>Join the queue and wait until it is your turn before starting.</p>
+<button id="camera" class="secondary" disabled>Start Camera</button>
+<button id="switch" disabled>Switch Camera</button>
+<button id="stopCamera" class="stop" disabled>Stop Camera</button>
+</section>
+
+<section>
+<h2>Screen sharing</h2>
+<p>On supported browsers, share a screen or window instead of your camera.</p>
+<button id="screen" class="secondary" disabled>Start Screen Sharing</button>
+<button id="stopScreen" class="stop" disabled>Stop Screen Sharing</button>
+<video id="preview" autoplay muted playsinline></video>
+<p><small>Your camera or screen is captured only after you choose to start it. Keep this page open while streaming.</small></p>
+</section>
+
+<script>
+"use strict";
+
+const $ = id => document.getElementById(id);
+let ws = null;
+let media = null;
+let timer = null;
+let myId = null;
+let isLive = false;
+let facing = "user";
+let starting = false;
+let generation = 0;
+let captureKind = "";
+
+function say(message) {
+  $("status").textContent = message;
+}
+
+function updateButtons() {
+  const connected = !!ws;
+  const canStream = connected && isLive;
+  $("join").disabled = connected;
+  $("leave").disabled = !connected;
+  $("camera").disabled = !canStream || !!media || starting;
+  $("screen").disabled = !canStream || !!media || starting;
+  $("switch").disabled = !canStream || captureKind !== "camera" || starting;
+  $("stopCamera").disabled = !media || captureKind !== "camera";
+  $("stopScreen").disabled = !media || captureKind !== "screen";
+}
+
+function stopCapture() {
+  generation++;
+  if (timer !== null) {
+    clearInterval(timer);
+    timer = null;
+  }
+  if (media) {
+    const old = media;
+    media = null;
+    old.getTracks().forEach(track => track.stop());
+  }
+  captureKind = "";
+  $("preview").srcObject = null;
+  updateButtons();
+}
+
+async function startCapture(kind) {
+  if (!ws || !isLive || media || starting) return;
+
+  const devices = navigator.mediaDevices;
+  if (!devices) {
+    say("Camera and screen capture require HTTPS or localhost in a supported browser.");
+    return;
+  }
+
+  if (kind === "camera" && !devices.getUserMedia) {
+    say("Camera capture is unavailable in this browser. Try an updated browser over HTTPS.");
+    return;
+  }
+  if (kind === "screen" && !devices.getDisplayMedia) {
+    say("Screen sharing is not supported by this browser. Try a supported desktop browser.");
+    return;
+  }
+
+  starting = true;
+  const myGeneration = ++generation;
+  updateButtons();
+
+  let chosen = null;
+
+  try {
+    if (kind === "camera") {
+      chosen = await devices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: facing },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 10, max: 15 }
+        }
+      });
+    } else {
+      chosen = await devices.getDisplayMedia({
+        video: { frameRate: { ideal: 10, max: 15 } },
+        audio: false
+      });
+    }
+
+    if (myGeneration !== generation || !ws || !isLive) {
+      chosen.getTracks().forEach(track => track.stop());
+      return;
+    }
+
+    media = chosen;
+    captureKind = kind;
+    const video = $("preview");
+    video.srcObject = chosen;
+    await video.play();
+
+    if (myGeneration !== generation || !media) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 200;
+    canvas.height = 200;
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    const track = chosen.getVideoTracks()[0];
+    if (track) {
+      track.addEventListener("ended", () => {
+        if (myGeneration !== generation) return;
+        stopCapture();
+        say(kind === "camera"
+          ? "Camera stopped."
+          : "Screen sharing stopped. You remain in the queue.");
+      }, { once: true });
+    }
+
+    timer = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN ||
+          !isLive || !media || video.readyState < 2) return;
+
+      try {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        ws.send(JSON.stringify({
+          type: "frame",
+          data: canvas.toDataURL("image/jpeg", 0.65)
+        }));
+      } catch (error) {
+        console.error("Frame capture/send failed:", error);
+      }
+    }, 200);
+
+    say(kind === "camera"
+      ? "CAMERA STREAM ACTIVE\nSending frames to the live queue."
+      : "SCREEN SHARING ACTIVE\nSending frames to the live queue.");
+  } catch (error) {
+    if (chosen && chosen !== media) {
+      chosen.getTracks().forEach(track => track.stop());
+    }
+    if (myGeneration === generation) {
+      say("Could not start " + kind + ": " +
+        (error.message || "Unknown error") +
+        "\nCheck browser permissions and try again.");
+    }
+  } finally {
+    if (myGeneration === generation) {
+      starting = false;
+      updateButtons();
+    }
+  }
+}
+
+$("camera").addEventListener("click", () => startCapture("camera"));
+$("screen").addEventListener("click", () => startCapture("screen"));
+
+$("switch").addEventListener("click", async () => {
+  if (captureKind !== "camera" || starting || !isLive) return;
+  facing = facing === "user" ? "environment" : "user";
+  stopCapture();
+  await startCapture("camera");
+});
+
+$("stopCamera").addEventListener("click", () => {
+  stopCapture();
+  say("Camera stopped. You remain in the queue.");
+});
+
+$("stopScreen").addEventListener("click", () => {
+  stopCapture();
+  say("Screen sharing stopped. You remain in the queue.");
+});
+
+$("join").addEventListener("click", () => {
+  if (ws) return;
+
+  const token = $("token").value.trim();
+  if (!token) {
+    say("Enter your private stream token first.");
+    return;
+  }
+
+  const name = $("name").value.trim() || "Device";
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(
+    proto + "//" + location.host + "/?token=" +
+    encodeURIComponent(token) + "&name=" + encodeURIComponent(name)
+  );
+
+  ws = socket;
+  updateButtons();
+
+  socket.onopen = () => {
+    say("Connected. Waiting for queue position...");
+    updateButtons();
+  };
+
+  socket.onmessage = event => {
+    let state;
+    try {
+      state = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    if (state.type !== "state") return;
+
+    myId = state.yourId;
+    isLive = state.active === myId;
+
+    if (!isLive && (media || starting)) stopCapture();
+
+    say((isLive ? "YOU ARE LIVE" : "Waiting in queue") +
+      "\nActive device: " + (state.active || "none") +
+      "\nDevices waiting: " +
+      (Array.isArray(state.queue) ? state.queue.length : 0) +
+      (isLive
+        ? "\nStart your camera or screen sharing below."
+        : "\nStreaming controls unlock when it is your turn."));
+
+    updateButtons();
+  };
+
+  socket.onerror = () => {
+    say("Connection error. Check the deployed service and stream token.");
+  };
+
+  socket.onclose = () => {
+    stopCapture();
+    if (ws === socket) ws = null;
+    myId = null;
+    isLive = false;
+    say("Disconnected from the queue.");
+    updateButtons();
+  };
+});
+
+$("leave").addEventListener("click", () => {
+  const socket = ws;
+  stopCapture();
+  isLive = false;
+  ws = null;
+  myId = null;
+  if (socket) socket.close();
+  say("Leaving the live queue...");
+  updateButtons();
+});
+
+if (!window.isSecureContext) {
+  say("Warning: camera and screen capture generally require HTTPS or localhost.");
+}
+
+updateButtons();
+console.log("[PixelCanvas Live] Camera and screen controls loaded.");
+</script>
+</body>
+</html>
