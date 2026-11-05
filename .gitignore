@@ -1,0 +1,7 @@
+node_modules/
+.DS_Store
+.env
+*.backup.js
+public/index.backup.html
+public/index.before-camera.html
+public/index.before-constraint-fix.html
